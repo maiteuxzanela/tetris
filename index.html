@@ -14,12 +14,32 @@
         #tetris {
             border: 2px solid white;
         }
+	/* Estilo da imagem (ESCONDIDA INICIALMENTE) */
+        #surpresa {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            display: none; /* ← Garante que a imagem comece escondida */
+            opacity: 0;
+            z-index: 1000;
+        }
+        /* Animação de piscar */
+        .piscar {
+            animation: piscar 0.3s linear 2;
+        }
+        @keyframes piscar {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
     </style>
 </head>
 <body>
     <canvas id="tetris" width="300" height="600"></canvas>
+    <img id="surpresa"  src="https://media.licdn.com/dms/image/v2/D4D03AQEhRVDyti5C8g/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1728755714724?e=1743638400&v=beta&t=Ib762qFt72vY_BvkYOQHqwpXm_kH-pqBRUeWrPZLjrg" alt:Surpresa!">    
 
-    <script>
+	<script>
         const canvas = document.getElementById('tetris');
         const ctx = canvas.getContext('2d');
         const BLOCK_SIZE = 30;
@@ -129,29 +149,42 @@
             }
         }
 
-       // Função para remover linhas completas (CORRIGIDA)
-        function clearLines() {
-            let linesCleared = 0;
-            const newBoard = [];
-            
-            // Filtra apenas as linhas incompletas
-            for (let row = 0; row < ROWS; row++) {
-                if (!board[row].every(cell => cell !== 0)) {
-                    newBoard.push(board[row]);
-                } else {
-                    linesCleared++;
-                }
-            }
-
-            // Preenche o topo com novas linhas vazias
-            for (let i = 0; i < linesCleared; i++) {
-                newBoard.unshift(Array(COLS).fill(0));
-            }
-
-            // Atualiza o tabuleiro
-            board = newBoard;
+function clearLines() {
+    let linesCleared = 0;
+    const newBoard = [];
+    
+    // Filtra linhas incompletas
+    for (let row = 0; row < ROWS; row++) {
+        if (!board[row].every(cell => cell !== 0)) {
+            newBoard.push([...board[row]]);
+        } else {
+            linesCleared++;
         }
+    }
 
+    // Adiciona linhas vazias no topo
+    for (let i = 0; i < linesCleared; i++) {
+        newBoard.unshift(Array(COLS).fill(0));
+    }
+
+    // Atualiza o tabuleiro
+    board = newBoard.slice(0, ROWS);
+
+    // Pisca a imagem se linhas foram removidas
+    if (linesCleared > 0) {
+        const img = document.getElementById('surpresa');
+        img.style.display = 'block';
+        img.classList.add('piscar');
+        
+        setTimeout(() => {
+            img.style.display = 'none';
+            img.classList.remove('piscar');
+        }, 600);
+    }
+
+    return linesCleared;
+}
+            
         // Desenha a grade do tabuleiro
         function drawGrid() {
             ctx.strokeStyle = '#333'; // Cor das linhas de referência
