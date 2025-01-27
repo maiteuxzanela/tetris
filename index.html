@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Tetris</title>
+    <style>
+        body {
+            background: #000;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        #tetris {
+            border: 2px solid white;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="tetris" width="300" height="600"></canvas>
+
+    <script>
+        const canvas = document.getElementById('tetris');
+        const ctx = canvas.getContext('2d');
+        const BLOCK_SIZE = 30;
+        const COLS = 10;
+        const ROWS = 20;
+        const DROP_INTERVAL = 800;
+        let board = Array(ROWS).fill().map(() => Array(COLS).fill(0));
+        let lastDropTime = Date.now();
+
+        // Cores das peças
+        const COLORS = [
+            '#000000', // Fundo
+            '#FF0D72', '#0DC2FF', '#0DFF72', '#F538FF', '#FF8E0D', '#FFE138', '#3877FF'
+        ];
+
+        // Formatos das peças
+        const SHAPES = [
+            [[1, 1, 1, 1]],               // I
+            [[1, 1], [1, 1]],             // O
+            [[1, 1, 1], [0, 1, 0]],       // T
+            [[1, 1, 1], [1, 0, 0]],       // L
+            [[1, 1, 1], [0, 0, 1]],       // J
+            [[1, 1, 0], [0, 1, 1]],       // S
+            [[0, 1, 1], [1, 1, 0]],       // Z
+        ];
+
+        // Classe da peça
+        class Piece {
+            constructor(shape, color) {
+                this.shape = shape;
+                this.color = color;
+                this.x = Math.floor(COLS / 2) - Math.floor(shape[0].length / 2);
+                this.y = 0;
+            }
+
+            draw() {
+                for (let row = 0; row < this.shape.length; row++) {
+                    for (let col = 0; col < this.shape[row].length; col++) {
+                        if (this.shape[row][col]) {
+                            ctx.fillStyle = this.color;
+                            ctx.fillRect(
+                                (this.x + col) * BLOCK_SIZE,
+                                (this.y + row) * BLOCK_SIZE,
+                                BLOCK_SIZE - 1,
+                                BLOCK_SIZE - 1
+                            );
+                        }
+                    }
+                }
+            }
+
+            move(dir) {
+                this.x += dir;
+                if (this.collision()) {
+                    this.x -= dir;
+                    return false;
+                }
+                return true;
+            }
+
+            rotate() {
+                const newShape = this.shape[0].map((_, i) =>
+                    this.shape.map(row => row[i]).reverse()
+                );
+                const oldShape = this.shape;
+                this.shape = newShape;
+                if (this.collision()) {
+                    this.shape = oldShape;
+                }
+            }
+
+            collision() {
+                for (let row = 0; row < this.shape.length; row++) {
+                    for (let col = 0; col < this.shape[row].length; col++) {
+                        if (this.shape[row][col]) {
+                            const newX = this.x + col;
+                            const newY = this.y + row;
+                            if (
+                                newX < 0 ||
+                                newX >= COLS ||
+                                newY >= ROWS ||
+                                board[newY][newX]
+                            ) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+
+            autoDrop() {
+                const now = Date.now();
+                if (now - lastDropTime > DROP_INTERVAL) {
+                    this.y++;
+                    lastDropTime = now;
+                    return true;
+                }
+                return false;
+            }
+
+            hardDrop() {
+                while (!this.collision()) {
+                    this.y++;
+                }
+                this.y--; // Volta para a última posição válida
+            }
+        }
+
+       // Função para remover linhas completas (CORRIGIDA)
+        function clearLines() {
+            let linesCleared = 0;
+            const newBoard = [];
+            
+            // Filtra apenas as linhas incompletas
+            for (let row = 0; row < ROWS; row++) {
+                if (!board[row].every(cell => cell !== 0)) {
+                    newBoard.push(board[row]);
+                } else {
+                    linesCleared++;
+                }
+            }
+
+            // Preenche o topo com novas linhas vazias
+            for (let i = 0; i < linesCleared; i++) {
+                newBoard.unshift(Array(COLS).fill(0));
+            }
+
+            // Atualiza o tabuleiro
+            board = newBoard;
+        }
+
+        // Desenha a grade do tabuleiro
+        function drawGrid() {
+            ctx.strokeStyle = '#333'; // Cor das linhas de referência
+            for (let row = 0; row < ROWS; row++) {
+                for (let col = 0; col < COLS; col++) {
+                    ctx.strokeRect(
+                        col * BLOCK_SIZE,
+                        row * BLOCK_SIZE,
+                        BLOCK_SIZE,
+                        BLOCK_SIZE
+                    );
+                }
+            }
+        }
+
+        // Cria a primeira peça
+        let piece = new Piece(
+            SHAPES[Math.floor(Math.random() * SHAPES.length)],
+            COLORS[Math.floor(Math.random() * (COLORS.length - 1)) + 1]
+        );
+
+        // Loop do jogo
+        function update() {
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawGrid(); // Desenha a grade
+
+            // Desenha o tabuleiro
+            for (let row = 0; row < ROWS; row++) {
+                for (let col = 0; col < COLS; col++) {
+                    if (board[row][col]) {
+                        ctx.fillStyle = board[row][col];
+                        ctx.fillRect(
+                            col * BLOCK_SIZE,
+                            row * BLOCK_SIZE,
+                            BLOCK_SIZE - 1,
+                            BLOCK_SIZE - 1
+                        );
+                    }
+                }
+            }
+
+            piece.draw();
+
+            // Movimento automático
+            const didMove = piece.autoDrop();
+            if (piece.collision()) {
+                piece.y--;
+                for (let row = 0; row < piece.shape.length; row++) {
+                    for (let col = 0; col < piece.shape[row].length; col++) {
+                        if (piece.shape[row][col]) {
+                            board[piece.y + row][piece.x + col] = piece.color;
+                        }
+                    }
+                }
+                clearLines(); // Remove linhas completas
+                // Nova peça
+                piece = new Piece(
+                    SHAPES[Math.floor(Math.random() * SHAPES.length)],
+                    COLORS[Math.floor(Math.random() * (COLORS.length - 1)) + 1]
+                );
+            }
+
+            requestAnimationFrame(update);
+        }
+
+        // Controles (tecla Espaço adicionada)
+        document.addEventListener('keydown', event => {
+            switch (event.keyCode) {
+                case 37: piece.move(-1); break;
+                case 39: piece.move(1); break;
+                case 40: 
+                    piece.y++;
+                    if (piece.collision()) piece.y--; 
+                    break;
+                case 38: piece.rotate(); break;
+                case 32: // Tecla Espaço (hard drop)
+                    piece.hardDrop();
+                    break;
+            }
+        });
+
+        // Inicia o jogo
+        update();
+    </script>
+</body>
+</html>
