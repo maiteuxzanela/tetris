@@ -90,6 +90,17 @@
     to { opacity: 1; }
 }
 
+#title {
+    position: absolute;
+    top: 4px;
+    left: 50%;
+transform: translateX(-50%);    
+color: #FFFFFF;
+    font-size: 32px;
+    font-family: Arial, sans-serif;
+    z-index: 2000;
+  }
+
     @media (max-width: 768px) {
         #tetris {
             width: 100vw;
@@ -135,6 +146,11 @@
 ">
     Jogar Novamente
 </button>
+</div>
+
+<div id="title">
+    <div style="font-size: 50px"/div>
+    Maitetrix<br>
 </div>
 
 	<script>
