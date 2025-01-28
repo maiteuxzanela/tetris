@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html>
+<head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Tetris</title>
+    <style>
+                      
+        body {
+            background: #000;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 95vh;
+        }
+        #tetris {
+            border: 2px solid white;
+        }
+	/* Estilo da imagem (ESCONDIDA INICIALMENTE) */
+        #surpresa {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px;
+            display: none; /* ← Garante que a imagem comece escondida */
+            opacity: 0;
+            z-index: 1000;
+        }
+        /* Animação de piscar */
+        .piscar {
+            animation: piscar 0.3s linear 2;
+        }
+        @keyframes piscar {
+            0%, 100% { opacity: 0; }
+            50% { opacity: 1; }
+        }
+
+    	/* Novos estilos para controles mobile */
+    	.mobile-controls {
+	 position: fixed;
+       	 bottom: 25px;
+       	 left: 0;
+         right: 0;
+         display: none; /* Inicialmente escondido */
+         justify-content: center;
+         gap: 15px;
+         padding: 10px;
+         touch-action: manipulation;
+   	}
+
+    .touch-btn {
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        border: 2px solid white;
+        color: white;
+        font-size: 24px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .touch-btn:active {
+        background: rgba(255, 255, 255, 0.4);
+        transform: scale(0.9);
+    }
+
+    @media (max-width: 768px) {
+        #tetris {
+            width: 100vw;
+            height: 120vh;
+        }
+
+        .mobile-controls {
+            display: flex;
+        }
+
+        /* Ajusta o canvas para mobile */
+        canvas {
+            max-width: 100%;
+            max-height: 70vh;
+        }
+       
+      </style>
+</head>
+<body>
+    <canvas id="tetris" width="300" height="600"></canvas>
+    <img id="surpresa"  src="https://media.licdn.com/dms/image/v2/D4D03AQEhRVDyti5C8g/profile-displayphoto-shrink_800_800/profile-displayphoto-shrink_800_800/0/1728755714724?e=1743638400&v=beta&t=Ib762qFt72vY_BvkYOQHqwpXm_kH-pqBRUeWrPZLjrg" alt="Surpresa!">    
+
+	<!-- Adicione esta div com botões touch -->
+    <div class="mobile-controls">
+        <button class="touch-btn" id="left-btn">←</button>
+        <button class="touch-btn" id="rotate-btn">↻</button>
+        <button class="touch-btn" id="right-btn">→</button>
+        <button class="touch-btn" id="drop-btn">↓</button>
+    </div>	
+
+	<script>
+        const canvas = document.getElementById('tetris');
+        const ctx = canvas.getContext('2d');
+        const BLOCK_SIZE = 30;
+        const COLS = 10;
+        const ROWS = 20;
+        const DROP_INTERVAL = 800;
+        let board = Array(ROWS).fill().map(() => Array(COLS).fill(0));
+        let lastDropTime = Date.now();
+
+        // Cores das peças
+        const COLORS = [
+            '#000000', // Fundo
+            '#FF0D72', '#0DC2FF', '#0DFF72', '#F538FF', '#FF8E0D', '#FFE138', '#3877FF'
+        ];
+
+        // Formatos das peças
+        const SHAPES = [
+            [[1, 1, 1, 1]],               // I
+            [[1, 1], [1, 1]],             // O
+            [[1, 1, 1], [0, 1, 0]],       // T
+            [[1, 1, 1], [1, 0, 0]],       // L
+            [[1, 1, 1], [0, 0, 1]],       // J
+            [[1, 1, 0], [0, 1, 1]],       // S
+            [[0, 1, 1], [1, 1, 0]],       // Z
+        ];
+
+        // Classe da peça
+        class Piece {
+            constructor(shape, color) {
+                this.shape = shape;
+                this.color = color;
+                this.x = Math.floor(COLS / 2) - Math.floor(shape[0].length / 2);
+                this.y = 0;
+            }
+
+            draw() {
+                for (let row = 0; row < this.shape.length; row++) {
+                    for (let col = 0; col < this.shape[row].length; col++) {
+                        if (this.shape[row][col]) {
+                            ctx.fillStyle = this.color;
+                            ctx.fillRect(
+                                (this.x + col) * BLOCK_SIZE,
+                                (this.y + row) * BLOCK_SIZE,
+                                BLOCK_SIZE - 1,
+                                BLOCK_SIZE - 1
+                            );
+                        }
+                    }
+                }
+            }
+
+            move(dir) {
+                this.x += dir;
+                if (this.collision()) {
+                    this.x -= dir;
+                    return false;
+                }
+                return true;
+            }
+
+            rotate() {
+                const newShape = this.shape[0].map((_, i) =>
+                    this.shape.map(row => row[i]).reverse()
+                );
+                const oldShape = this.shape;
+                this.shape = newShape;
+                if (this.collision()) {
+                    this.shape = oldShape;
+                }
+            }
+
+            collision() {
+                for (let row = 0; row < this.shape.length; row++) {
+                    for (let col = 0; col < this.shape[row].length; col++) {
+                        if (this.shape[row][col]) {
+                            const newX = this.x + col;
+                            const newY = this.y + row;
+                            if (
+                                newX < 0 ||
+                                newX >= COLS ||
+                                newY >= ROWS ||
+                                board[newY][newX]
+                            ) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+                return false;
+            }
+
+            autoDrop() {
+                const now = Date.now();
+                if (now - lastDropTime > DROP_INTERVAL) {
+                    this.y++;
+                    lastDropTime = now;
+                    return true;
+                }
+                return false;
+            }
+
+            hardDrop() {
+                while (!this.collision()) {
+                    this.y++;
+                }
+                this.y--; // Volta para a última posição válida
+            }
+        }
+
+function clearLines() {
+    let linesCleared = 0;
+    const newBoard = [];
+    
+    // Filtra linhas incompletas
+    for (let row = 0; row < ROWS; row++) {
+        if (!board[row].every(cell => cell !== 0)) {
+            newBoard.push([...board[row]]);
+        } else {
+            linesCleared++;
+        }
+    }
+
+    // Adiciona linhas vazias no topo
+    for (let i = 0; i < linesCleared; i++) {
+        newBoard.unshift(Array(COLS).fill(0));
+    }
+
+    // Atualiza o tabuleiro
+    board = newBoard.slice(0, ROWS);
+
+    // Pisca a imagem se linhas foram removidas
+    if (linesCleared > 0) {
+        const img = document.getElementById('surpresa');
+        img.style.display = 'block';
+        img.classList.add('piscar');
+        
+        setTimeout(() => {
+            img.style.display = 'none';
+            img.classList.remove('piscar');
+        }, 600);
+    }
+
+    return linesCleared;
+}
+            
+        // Desenha a grade do tabuleiro
+        function drawGrid() {
+            ctx.strokeStyle = '#333'; // Cor das linhas de referência
+            for (let row = 0; row < ROWS; row++) {
+                for (let col = 0; col < COLS; col++) {
+                    ctx.strokeRect(
+                        col * BLOCK_SIZE,
+                        row * BLOCK_SIZE,
+                        BLOCK_SIZE,
+                        BLOCK_SIZE
+                    );
+                }
+            }
+        }
+
+        // Cria a primeira peça
+        let piece = new Piece(
+            SHAPES[Math.floor(Math.random() * SHAPES.length)],
+            COLORS[Math.floor(Math.random() * (COLORS.length - 1)) + 1]
+        );
+
+      // Ajusta o tamanho do canvas para mobile
+function resizeCanvas() {
+    if (window.innerWidth <= 768) {
+        canvas.style.width = '90vw';
+        canvas.style.height = '90vh';
+    } else {
+        canvas.style.width = '300px';
+        canvas.style.height = '600px';
+    }
+}
+
+// Inicializa e monitora redimensionamento
+resizeCanvas();
+window.addEventListener('resize', resizeCanvas);
+
+// Controles Touch
+const touchControls = {
+    left: false,
+    right: false,
+    rotate: false,
+    drop: false
+};
+
+// Função para tratamento contínuo do movimento
+function handleTouchInput() {
+    if (touchControls.left) piece.move(-1);
+    if (touchControls.right) piece.move(1);
+    if (touchControls.rotate) {
+        piece.rotate();
+        touchControls.rotate = false; // Reset para evitar rotação contínua
+    }
+    if (touchControls.drop) piece.hardDrop();
+};
+
+// Event listeners para os botões touch
+document.getElementById('left-btn').addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    touchControls.left = true;
+});
+
+document.getElementById('left-btn').addEventListener('touchend', () => {
+    touchControls.left = false;
+});
+
+document.getElementById('right-btn').addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    touchControls.right = true;
+});
+
+document.getElementById('right-btn').addEventListener('touchend', () => {
+    touchControls.right = false;
+});
+
+document.getElementById('rotate-btn').addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    touchControls.rotate = true;
+});
+
+document.getElementById('rotate-btn').addEventListener('touchend', (e) => {
+    e.preventDefault();
+    touchControls.rotate = false;
+});
+
+document.getElementById('drop-btn').addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    touchControls.drop = true;
+});
+
+document.getElementById('drop-btn').addEventListener('touchend', () => {
+    touchControls.drop = false;
+});
+
+       // Controles (tecla Espaço adicionada)
+        document.addEventListener('keydown', event => {
+            switch (event.keyCode) {
+                case 37: piece.move(-1); break;
+                case 39: piece.move(1); break;
+                case 40: 
+                    piece.y++;
+                    if (piece.collision()) piece.y--; 
+                    break;
+                case 38: piece.rotate(); break;
+                case 32: // Tecla Espaço (hard drop)
+                    piece.hardDrop();
+                    break;
+            }
+        });  
+
+	// Loop do jogo
+        function update() {
+            handleTouchInput();
+	    ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawGrid(); // Desenha a grade
+
+            // Desenha o tabuleiro
+            for (let row = 0; row < ROWS; row++) {
+                for (let col = 0; col < COLS; col++) {
+                    if (board[row][col]) {
+                        ctx.fillStyle = board[row][col];
+                        ctx.fillRect(
+                            col * BLOCK_SIZE,
+                            row * BLOCK_SIZE,
+                            BLOCK_SIZE - 1,
+                            BLOCK_SIZE - 1
+                        );
+                    }
+                }
+            }
+
+            piece.draw();
+
+            // Movimento automático
+            const didMove = piece.autoDrop();
+            if (piece.collision()) {
+                piece.y--;
+                for (let row = 0; row < piece.shape.length; row++) {
+                    for (let col = 0; col < piece.shape[row].length; col++) {
+                        if (piece.shape[row][col]) {
+                            board[piece.y + row][piece.x + col] = piece.color;
+                        }
+                    }
+                }
+                clearLines(); // Remove linhas completas
+                // Nova peça
+                piece = new Piece(
+                    SHAPES[Math.floor(Math.random() * SHAPES.length)],
+                    COLORS[Math.floor(Math.random() * (COLORS.length - 1)) + 1]
+                );
+            }
+
+            requestAnimationFrame(update);
+        }
+
+	 // Inicia o jogo APÓS definir tudo
+        update();     
+    </script>
+</body>
+</html>
