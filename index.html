@@ -36,6 +36,25 @@
             50% { opacity: 1; }
         }
 
+/* Estilo da mensagem de Game Over */
+#game-over {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #FF0D72;
+    font-size: 48px;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+    display: none;
+    z-index: 2000;
+    background: rgba(0, 0, 0, 0.8);
+    padding: 20px;
+    border-radius: 10px;
+    animation: fadeIn 0.5s ease-out;
+}
+
     	/* Novos estilos para controles mobile */
     	.mobile-controls {
 	 position: fixed;
@@ -66,6 +85,11 @@
         transform: scale(0.9);
     }
 
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
     @media (max-width: 768px) {
         #tetris {
             width: 100vw;
@@ -81,7 +105,8 @@
             max-width: 100%;
             max-height: 70vh;
         }
-       
+    
+
       </style>
 </head>
 <body>
@@ -96,6 +121,22 @@
         <button class="touch-btn" id="drop-btn">↓</button>
     </div>	
 
+<div id="game-over">
+    <div style="font-size: 72px">💀</div>
+    Já acabou???<br>
+<button onclick="window.location.reload()" style="
+    margin-top: 15px;
+    padding: 10px 20px;
+    background: #FF0D72;
+    border: none;
+    color: white;
+    border-radius: 5px;
+    cursor: pointer;
+">
+    Jogar Novamente
+</button>
+</div>
+
 	<script>
         const canvas = document.getElementById('tetris');
         const ctx = canvas.getContext('2d');
@@ -106,7 +147,9 @@
         let board = Array(ROWS).fill().map(() => Array(COLS).fill(0));
         let lastDropTime = Date.now();
 
-        // Cores das peças
+let gameOver = false;       
+
+ // Cores das peças
         const COLORS = [
             '#000000', // Fundo
             '#FF0D72', '#0DC2FF', '#0DFF72', '#F538FF', '#FF8E0D', '#FFE138', '#3877FF'
@@ -265,13 +308,15 @@ function clearLines() {
 
       // Ajusta o tamanho do canvas para mobile
 function resizeCanvas() {
-    if (window.innerWidth <= 768) {
-        canvas.style.width = '90vw';
-        canvas.style.height = '90vh';
-    } else {
-        canvas.style.width = '300px';
-        canvas.style.height = '600px';
-    }
+    // Mantém as proporções originais (300x600)
+    const scale = window.innerWidth <= 768 ? 0.9 : 1;
+    canvas.style.width = `${300 * scale}px`;
+    canvas.style.height = `${600 * scale}px`;
+    // Mantém o canvas nítido ajustando os atributos width/height
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = 300 * dpr;
+    canvas.height = 600 * dpr;
+    ctx.scale(dpr, dpr);
 }
 
 // Inicializa e monitora redimensionamento
@@ -353,53 +398,61 @@ document.getElementById('drop-btn').addEventListener('touchend', () => {
 
 	// Loop do jogo
         function update() {
-            handleTouchInput();
-	    ctx.fillStyle = '#000';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            drawGrid(); // Desenha a grade
-
-            // Desenha o tabuleiro
-            for (let row = 0; row < ROWS; row++) {
-                for (let col = 0; col < COLS; col++) {
-                    if (board[row][col]) {
-                        ctx.fillStyle = board[row][col];
-                        ctx.fillRect(
-                            col * BLOCK_SIZE,
-                            row * BLOCK_SIZE,
-                            BLOCK_SIZE - 1,
-                            BLOCK_SIZE - 1
-                        );
-                    }
-                }
-            }
-
-            piece.draw();
-
-            // Movimento automático
-            const didMove = piece.autoDrop();
-            if (piece.collision()) {
-                piece.y--;
-                for (let row = 0; row < piece.shape.length; row++) {
-                    for (let col = 0; col < piece.shape[row].length; col++) {
-                        if (piece.shape[row][col]) {
-                            board[piece.y + row][piece.x + col] = piece.color;
-                        }
-                    }
-                }
-                clearLines(); // Remove linhas completas
-                // Nova peça
-                piece = new Piece(
-                    SHAPES[Math.floor(Math.random() * SHAPES.length)],
-                    COLORS[Math.floor(Math.random() * (COLORS.length - 1)) + 1]
-                );
-            }
-
-            requestAnimationFrame(update);
+        if (gameOver) {
+            document.getElementById('game-over').style.display = 'block';
+            return;
         }
 
-	 // Inicia o jogo APÓS definir tudo
-        update();     
+        handleTouchInput();
+
+        ctx.fillStyle = '#000';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        drawGrid();
+
+        for (let row = 0; row < ROWS; row++) {
+            for (let col = 0; col < COLS; col++) {
+                if (board[row][col]) {
+                    ctx.fillStyle = board[row][col];
+                    ctx.fillRect(
+                        col * BLOCK_SIZE,
+                        row * BLOCK_SIZE,
+                        BLOCK_SIZE - 1,
+                        BLOCK_SIZE - 1
+                    );
+                }
+            }
+        }
+
+        piece.draw();
+
+        const didMove = piece.autoDrop();
+        if (piece.collision()) {
+            piece.y--;
+            for (let row = 0; row < piece.shape.length; row++) {
+                for (let col = 0; col < piece.shape[row].length; col++) {
+                    if (piece.shape[row][col]) {
+                        board[piece.y + row][piece.x + col] = piece.color;
+                    }
+                }
+            }
+            clearLines();
+            
+            // Cria nova peça e verifica colisão imediatamente
+            piece = new Piece(
+                SHAPES[Math.floor(Math.random() * SHAPES.length)],
+                COLORS[Math.floor(Math.random() * (COLORS.length - 1)) + 1]
+            );
+
+            // Verifica se a nova peça já colide (game over)
+            if (piece.collision()) {
+                gameOver = true;
+            }
+        }
+
+        requestAnimationFrame(update);
+    }
+
+    update();     
     </script>
 </body>
 </html>
