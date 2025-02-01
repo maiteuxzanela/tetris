@@ -101,7 +101,16 @@ color: #FFFFFF;
     z-index: 2000;
   }
 
-    @media (max-width: 768px) {
+#score {
+  position: absolute;
+  top: 35px;
+  right: 0px;
+  font-size: 40px;
+  margin-top: 10px;
+  color: #ffd700; /* Dourado épico */
+} 
+
+   @media (max-width: 768px) {
         #tetris {
             width: 100vw;
             height: 120vh;
@@ -153,6 +162,9 @@ color: #FFFFFF;
     Maitetrix<br>
 </div>
 
+  <div id="score">0</div>
+</div>
+
 	<script>
         const canvas = document.getElementById('tetris');
         const ctx = canvas.getContext('2d');
@@ -162,8 +174,7 @@ color: #FFFFFF;
         const DROP_INTERVAL = 800;
         let board = Array(ROWS).fill().map(() => Array(COLS).fill(0));
         let lastDropTime = Date.now();
-
-let gameOver = false;       
+	let gameOver = false;       
 
  // Cores das peças
         const COLORS = [
@@ -265,10 +276,11 @@ let gameOver = false;
             }
         }
 
+let score = 0
 function clearLines() {
     let linesCleared = 0;
     const newBoard = [];
-    
+   
     // Filtra linhas incompletas
     for (let row = 0; row < ROWS; row++) {
         if (!board[row].every(cell => cell !== 0)) {
@@ -276,7 +288,7 @@ function clearLines() {
         } else {
             linesCleared++;
         }
-    }
+ }
 
     // Adiciona linhas vazias no topo
     for (let i = 0; i < linesCleared; i++) {
@@ -296,12 +308,28 @@ function clearLines() {
             img.style.display = 'none';
             img.classList.remove('piscar');
         }, 600);
-    }
+}
+
+if(linesCleared == 1) {
+	score += linesCleared*10;
+	document.getElementById("score").textContent = score;
+}
+
+if(linesCleared == 2) {
+	score += linesCleared*25;
+	document.getElementById("score").textContent = score;
+}
+if(linesCleared == 4) {
+	score += linesCleared*100;
+	document.getElementById("score").textContent = score;
+}	
 
     return linesCleared;
 }
-            
-        // Desenha a grade do tabuleiro
+
+  
+     
+   // Desenha a grade do tabuleiro
         function drawGrid() {
             ctx.strokeStyle = '#333'; // Cor das linhas de referência
             for (let row = 0; row < ROWS; row++) {
