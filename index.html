@@ -2,7 +2,7 @@
 <html>
 <head>
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Tetris</title>
+    <title>MAITETRIX</title>
     <style>
                       
         body {
@@ -16,7 +16,19 @@
         #tetris {
             border: 2px solid white;
         }
-	/* Estilo da imagem (ESCONDIDA INICIALMENTE) */
+	
+#gameTitle {
+  position: absolute;
+  top: 0%;
+  left: 19%;
+  font-family: 'YasashiiW01-Bold', monospace; /* Fonte de largura fixa */
+  letter-spacing: 4px; /* Espaçamento estilo arcade */
+  color: #FFD700; /* Cor dourada (opcional) */
+  margin: 15px 0;
+  font-size: 2.2em;
+}
+
+/* Estilo da imagem (ESCONDIDA INICIALMENTE) */
         #surpresa {
             position: absolute;
             top: 50%;
@@ -90,25 +102,6 @@
     to { opacity: 1; }
 }
 
-#title {
-    position: absolute;
-    top: 4px;
-    left: 50%;
-transform: translateX(-50%);    
-color: #FFFFFF;
-    font-size: 32px;
-    font-family: Arial, sans-serif;
-    z-index: 2000;
-  }
-
-#score {
-  position: absolute;
-  top: 35px;
-  right: 0px;
-  font-size: 40px;
-  margin-top: 10px;
-  color: #ffd700; /* Dourado épico */
-} 
 
    @media (max-width: 768px) {
         #tetris {
@@ -125,7 +118,7 @@ color: #FFFFFF;
             max-width: 100%;
             max-height: 70vh;
         }
-    
+    }
 
       </style>
 </head>
@@ -157,16 +150,13 @@ color: #FFFFFF;
 </button>
 </div>
 
-<div id="title">
-    <div style="font-size: 50px"/div>
-    Maitetrix<br>
-</div>
-
-  <div id="score">0</div>
-</div>
+  <h1 id="gameTitle">MAITETRIX</h1>
 
 	<script>
-        const canvas = document.getElementById('tetris');
+        const titleElement = document.getElementById('gameTitle');
+	const originalTitle = 'MAITETRIX'; 
+	let currentTitle = originalTitle;
+	const canvas = document.getElementById('tetris');
         const ctx = canvas.getContext('2d');
         const BLOCK_SIZE = 30;
         const COLS = 10;
@@ -174,7 +164,18 @@ color: #FFFFFF;
         const DROP_INTERVAL = 800;
         let board = Array(ROWS).fill().map(() => Array(COLS).fill(0));
         let lastDropTime = Date.now();
-	let gameOver = false;       
+	let gameOver = false;
+	let score = 0;  	
+
+function updateTitleWithScore(pontuacaoNumerica) {
+    const scoreStr = pontuacaoNumerica.toString();
+    const comprimento = scoreStr.length;
+    
+    // Mantém o comprimento original do título (9 caracteres)
+    const novoTexto = scoreStr + originalTitle.slice(comprimento);
+    
+    titleElement.textContent = novoTexto;
+}
 
  // Cores das peças
         const COLORS = [
@@ -276,11 +277,11 @@ color: #FFFFFF;
             }
         }
 
-let score = 0
 function clearLines() {
     let linesCleared = 0;
     const newBoard = [];
-   
+    
+  
     // Filtra linhas incompletas
     for (let row = 0; row < ROWS; row++) {
         if (!board[row].every(cell => cell !== 0)) {
@@ -298,6 +299,10 @@ function clearLines() {
     // Atualiza o tabuleiro
     board = newBoard.slice(0, ROWS);
 
+if (linesCleared > 0) {
+    updateScore(linesCleared); // Atualiza a pontuação
+}
+
     // Pisca a imagem se linhas foram removidas
     if (linesCleared > 0) {
         const img = document.getElementById('surpresa');
@@ -309,31 +314,23 @@ function clearLines() {
             img.classList.remove('piscar');
         }, 600);
 }
-
-if(linesCleared == 1) {
-	score += linesCleared*7;
-	document.getElementById("score").textContent = score;
 }
 
-if(linesCleared == 2) {
-	score += linesCleared*23;
-	document.getElementById("score").textContent = score;
+// Função updateScore corrigida:
+function updateScore(linesCleared) {
+    let points = 0;
+    switch(linesCleared) {
+        case 1: points = 7; break;
+        case 2: points = 23; break;
+        case 3: points = 23; break;
+        case 4: points = 61; break;
+    }
+    score += points;
+    updateTitleWithScore(score);
 }
 
-if(linesCleared == 3) {
-	score += linesCleared*23;
-	document.getElementById("score").textContent = score;
-}
 
-if(linesCleared == 4) {
-	score += linesCleared*61;
-	document.getElementById("score").textContent = score;
-}	
 
-    return linesCleared;
-}
-
-  
      
    // Desenha a grade do tabuleiro
         function drawGrid() {
@@ -446,6 +443,7 @@ document.getElementById('drop-btn').addEventListener('touchend', () => {
             }
         });  
 
+
 	// Loop do jogo
         function update() {
         if (gameOver) {
@@ -503,6 +501,6 @@ document.getElementById('drop-btn').addEventListener('touchend', () => {
     }
 
     update();     
-    </script>
+	</script>
 </body>
 </html>
