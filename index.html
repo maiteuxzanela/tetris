@@ -28,6 +28,57 @@
   font-size: 2.2em;
 }
 
+#highscore {
+    position: fixed;
+    top: 20%;
+    left: 15.5%;
+    transform: translateX(-50%);
+    font-family: 'YasashiiW01-Bold', monospace;
+    letter-spacing: 4px;
+    color: #FFD700;
+    margin: 0;
+    font-size: 1.5em;
+    line-height: 1.3;
+    text-align: center;
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0.7);
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: #1a1a1a;
+  margin: 15% auto;
+  padding: 20px;
+  width: 300px;
+  border-radius: 10px;
+  text-align: center;
+  color: white;
+}
+
+#playerNameInput {
+  margin: 10px 0;
+  padding: 8px;
+  width: 80%;
+  font-size: 16px;
+}
+
+button {
+  background-color: #4CAF50;
+  color: white;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
 /* Estilo da imagem (ESCONDIDA INICIALMENTE) */
         #surpresa {
             position: absolute;
@@ -51,7 +102,7 @@
 /* Estilo da mensagem de Game Over */
 #game-over {
     position: absolute;
-    top: 50%;
+    top: 80%;
     left: 50%;
     transform: translate(-50%, -50%);
     color: #FF0D72;
@@ -118,6 +169,10 @@
             max-width: 100%;
             max-height: 70vh;
         }
+        #highscore {
+            left: -9999px; /* Move para fora da tela */
+        }
+        
     }
 
       </style>
@@ -148,9 +203,20 @@
 ">
     Jogar Novamente
 </button>
-</div>
+   </div>
 
   <h1 id="gameTitle">MAITETRIX</h1>
+  <h2 id="highscore">Highscore: 0</h2>
+  <div id="highscore-list"></div>
+
+  <div id="highscoreModal" class="modal">
+    <div class="modal-content">
+      <h2>🎉 Novo Highscore! 🎉</h2>
+      <p>Digite seu nome para o placar:</p>
+      <input type="text" id="playerNameInput" maxlength="20">
+      <button onclick="submitHighscore()">Salvar</button>
+    </div>
+  </div>
 
 	<script>
         const titleElement = document.getElementById('gameTitle');
@@ -166,6 +232,16 @@
         let lastDropTime = Date.now();
 	let gameOver = false;
 	let score = 0;  	
+    let highscore = localStorage.getItem('highscore') || 0;
+    let highscoreName = localStorage.getItem('highscoreName') || 'N/A';
+    document.getElementById('highscore').innerHTML = `${highscoreName}<br> está no topo<br> com ${highscore} pontos`;
+    let dropInterval = DROP_INTERVAL;
+    let highscores = JSON.parse(localStorage.getItem('highscores')) || [];
+
+    function updateDropInterval(score) {
+        const digits = score.toString().length;
+        dropInterval = DROP_INTERVAL / digits;
+    }
 
 function updateTitleWithScore(pontuacaoNumerica) {
     const scoreStr = pontuacaoNumerica.toString();
@@ -261,7 +337,7 @@ function updateTitleWithScore(pontuacaoNumerica) {
 
             autoDrop() {
                 const now = Date.now();
-                if (now - lastDropTime > DROP_INTERVAL) {
+                if (now - lastDropTime > dropInterval) {
                     this.y++;
                     lastDropTime = now;
                     return true;
@@ -327,11 +403,49 @@ function updateScore(linesCleared) {
     }
     score += points;
     updateTitleWithScore(score);
+    updateDropInterval(score); // Atualiza a velocidade das peças
 }
 
+// Variável para armazenar o score temporariamente
+let tempHighscore = 0;
+function updateHighscore(newScore) {
+  if (newScore > highscore) {
+    tempHighscore = newScore; // Guarda o score temporariamente
+    showHighscoreModal(); // Mostra o modal ao invés do prompt
+  }
+}
 
+function showHighscoreModal() {
+  const modal = document.getElementById('highscoreModal');
+  modal.style.display = 'block';
+  document.getElementById('playerNameInput').value = ''; // Limpa o input
+  document.getElementById('playerNameInput').focus(); // Foca no input
+  
+  // Pausa o jogo (se necessário)
+  gamePaused = true;
+}
 
-     
+function submitHighscore() {
+  const modal = document.getElementById('highscoreModal');
+  const playerName = document.getElementById('playerNameInput').value;
+  
+  // Atualiza o highscore
+  highscore = tempHighscore;
+  highscoreName = playerName || 'Anônimo';
+  
+  // Salva e atualiza a UI
+  localStorage.setItem('highscore', highscore);
+  localStorage.setItem('highscoreName', highscoreName);
+  document.getElementById('highscore').innerHTML = `${highscoreName}<br> está no topo<br> com ${highscore} pontos`;
+  
+  // Esconde o modal e retoma o jogo
+  modal.style.display = 'none';
+  gamePaused = false;
+  
+  // Opcional: Foca de volta no canvas do jogo
+  document.querySelector('canvas').focus();
+}
+
    // Desenha a grade do tabuleiro
         function drawGrid() {
             ctx.strokeStyle = '#333'; // Cor das linhas de referência
@@ -389,43 +503,25 @@ function handleTouchInput() {
     if (touchControls.drop) piece.hardDrop();
 };
 
-// Event listeners para os botões touch
-document.getElementById('left-btn').addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    touchControls.left = true;
-});
+// Função para adicionar delay aos botões touch
+function addTouchDelay(buttonId, controlKey) {
+    const button = document.getElementById(buttonId);
 
-document.getElementById('left-btn').addEventListener('touchend', () => {
-    touchControls.left = false;
-});
+    button.addEventListener('touchstart', (e) => {
+        e.preventDefault();
+        touchControls[controlKey] = true;
+    });
 
-document.getElementById('right-btn').addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    touchControls.right = true;
-});
+    button.addEventListener('touchend', () => {
+        touchControls[controlKey] = false;
+    });
+}
 
-document.getElementById('right-btn').addEventListener('touchend', () => {
-    touchControls.right = false;
-});
-
-document.getElementById('rotate-btn').addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    touchControls.rotate = true;
-});
-
-document.getElementById('rotate-btn').addEventListener('touchend', (e) => {
-    e.preventDefault();
-    touchControls.rotate = false;
-});
-
-document.getElementById('drop-btn').addEventListener('touchstart', (e) => {
-    e.preventDefault();
-    touchControls.drop = true;
-});
-
-document.getElementById('drop-btn').addEventListener('touchend', () => {
-    touchControls.drop = false;
-});
+// Adiciona delay aos botões touch
+addTouchDelay('left-btn', 'left');
+addTouchDelay('right-btn', 'right');
+addTouchDelay('rotate-btn', 'rotate');
+addTouchDelay('drop-btn', 'drop');
 
        // Controles (tecla Espaço adicionada)
         document.addEventListener('keydown', event => {
@@ -448,6 +544,7 @@ document.getElementById('drop-btn').addEventListener('touchend', () => {
         function update() {
         if (gameOver) {
             document.getElementById('game-over').style.display = 'block';
+            updateHighscore(score); // Atualiza o highscore no final do jogo
             return;
         }
 
@@ -473,33 +570,36 @@ document.getElementById('drop-btn').addEventListener('touchend', () => {
 
         piece.draw();
 
-        const didMove = piece.autoDrop();
-        if (piece.collision()) {
-            piece.y--;
-            for (let row = 0; row < piece.shape.length; row++) {
-                for (let col = 0; col < piece.shape[row].length; col++) {
-                    if (piece.shape[row][col]) {
-                        board[piece.y + row][piece.x + col] = piece.color;
+        const now = Date.now();
+        if (now - lastDropTime > dropInterval) {
+            piece.y++;
+            lastDropTime = now;
+            if (piece.collision()) {
+                piece.y--;
+                for (let row = 0; row < piece.shape.length; row++) {
+                    for (let col = 0; col < piece.shape[row].length; col++) { // Corrected line
+                        if (piece.shape[row][col]) {
+                            board[piece.y + row][piece.x + col] = piece.color;
+                        }
                     }
                 }
-            }
-            clearLines();
-            
-            // Cria nova peça e verifica colisão imediatamente
-            piece = new Piece(
-                SHAPES[Math.floor(Math.random() * SHAPES.length)],
-                COLORS[Math.floor(Math.random() * (COLORS.length - 1)) + 1]
-            );
+                clearLines();
+                
+                // Cria nova peça e verifica colisão imediatamente
+                piece = new Piece(
+                    SHAPES[Math.floor(Math.random() * SHAPES.length)],
+                    COLORS[Math.floor(Math.random() * (COLORS.length - 1)) + 1]
+                );
 
-            // Verifica se a nova peça já colide (game over)
-            if (piece.collision()) {
-                gameOver = true;
+                // Verifica se a nova peça já colide (game over)
+                if (piece.collision()) {
+    gameOver = true;
+                }
             }
         }
-
-        requestAnimationFrame(update);
+                  
+         requestAnimationFrame(update);
     }
-
     update();     
 	</script>
 </body>
